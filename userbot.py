@@ -13,10 +13,21 @@ api_hash = os.getenv("USERBOT_API_HASH")
 ACE_BOT_ID = 8255035281
 ACE_BOT = '@ace_study_ass_bot'   
 TARGET_SONGBOT = '@somgsforme_bot'
-ARCHIVE_CHANNEL_ID = -1003943796781 # ဤနေရာတွင် သင့် Private Channel ID အမှန်ကို ထည့်ပါ
+ARCHIVE_CHANNEL_ID = -1003943796781 
 
 
-client = TelegramClient('my_userbot', api_id, api_hash)
+from telethon.sessions import StringSession
+import os
+
+api_id = int(os.getenv("USERBOT_API_ID"))
+api_hash = os.getenv("USERBOT_API_HASH")
+
+# Session String ကို ဖတ်ရန်
+session_string = os.getenv("SESSION_STRING")
+if session_string:
+    client = TelegramClient(StringSession(session_string), api_id, api_hash)
+else:
+    client = TelegramClient('my_userbot', api_id, api_hash)
 active_song_requests = {}
 
 # --- (၁) ဇာတ်ကား အားလုံး (Video, Document, Photo Poster, Link) များကို Scan ဖတ်ပြီး Private Channel သို့ ပို့ရန် ---
