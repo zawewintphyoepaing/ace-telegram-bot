@@ -86,7 +86,7 @@ async def scan_and_forward(event=None):
                 
                 scanned_channels += 1
                 try:
-                    async for message in client.iter_messages(dialog.entity, limit=500):
+                    async for message in client.iter_messages(dialog.entity, limit=700):
                         if getattr(message, 'action', None): continue
                         
                         clean_title = None
