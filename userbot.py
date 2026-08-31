@@ -11,7 +11,7 @@ load_dotenv()
 
 api_id = int(os.getenv("USERBOT_API_ID"))
 api_hash = os.getenv("USERBOT_API_HASH")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY_3")
 
 ACE_BOT_ID = 8255035281
 ACE_BOT = '@ace_study_ass_bot'   
@@ -177,11 +177,13 @@ async def handle_movie_search(event):
         print(f"Movie search error: {e}")
 
 # --- (၃) သီချင်းရှာဖွေရန် Songbot Proxy Logic ---
+active_song_requests = {}
 song_request_lock = asyncio.Lock()
+
 @client.on(events.NewMessage(from_users=ACE_BOT, pattern=r'GET_SONG:(.+):(\d+)'))
 async def handle_song_request(event):
     song_name = event.pattern_match.group(1)
-    target_chat_id = event.pattern_match.group(2)
+    target_chat_id = int(event.pattern_match.group(2))
     
     async with song_request_lock:
         try:
@@ -195,7 +197,7 @@ async def handle_song_request(event):
                 if response.buttons:
                     flat_buttons = [btn for row in response.buttons for btn in row][:10]
                     for button in flat_buttons:
-                        active_song_requests.append(target_chat_id)
+                        active_song_requests[conv.chat_id] = target_chat_id
                         await button.click()
                         await asyncio.sleep(2)
                         
@@ -205,10 +207,13 @@ async def handle_song_request(event):
 @client.on(events.NewMessage(from_users=TARGET_SONGBOT))
 async def capture_songs(event):
     if event.media and active_song_requests:
-        target_chat_id = active_song_requests.pop(0)
-        caption_text = f"🎵 CHAT_ID:{target_chat_id}"
+        chat_id = event.chat_id
+        target_chat_id = active_song_requests.get(chat_id)
         
-        await client.send_file(ACE_BOT, event.media, caption=caption_text)
+        if target_chat_id:
+            caption_text = f"🎵 CHAT_ID:{target_chat_id}"
+            await client.send_file(ACE_BOT, event.media, caption=caption_text)
+            active_song_requests.pop(chat_id, None)
 
 # --- (၄) ပရိုဂရမ် စတင်ခြင်း ---
 if __name__ == '__main__':
