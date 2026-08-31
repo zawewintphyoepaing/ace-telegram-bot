@@ -814,7 +814,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         status_msg = await update.message.reply_text("🎧 သီချင်းကို ရှာနေပါပြီ... ခေတ္တစောင့်ပေးပါခင်ဗျာ...တောင်းဆိုမှုကို Assistant AI အား လွှဲပြောင်းပေးလိုက်ပါပြီ..")
         await process_and_send_song(chat_id, user_text, context, status_msg)
         return
-	if mode == 'ent_movie':
+    if mode == 'ent_movie':
         await update.message.reply_text(f"🔍 '{user_text}' ကို ရှာဖွေနေပါပြီ ခဏစောင့်ပါ...")
         userbot_target = 8081029424  # သင့် Userbot ID
         try:
