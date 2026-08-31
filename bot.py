@@ -793,9 +793,9 @@ async def process_and_send_song(chat_id, query, context, status_msg=None):
         await context.bot.send_message(chat_id=chat_id, text=f"❌ သီချင်းတောင်းဆိုရာတွင် အမှားအယွင်းရှိသွားပါတယ်။: {str(e)}")
 # --- NEW: Text Message Handler (စာသားဖြင့် မေးလာလျှင် ပြန်ဖြေရန်) ---
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-	sender = update.effective_user
+    sender = update.effective_user
     if sender and sender.id == 8081029424:  # Userbot မှ လာသော စာသားဖြစ်ပါက handle_userbot_media သို့ လွှဲပေးမည်
-        await handle_userbot_media(update, context)
+    await handle_userbot_media(update, context)
         return
     chat_id = update.effective_chat.id
     user_text = update.message.text
