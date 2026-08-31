@@ -599,10 +599,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
         
-    elif data == 'ent_movie':
+   elif data == 'ent_movie':
+        USER_MODES[chat_id] = 'ent_movie'
         await query.edit_message_text(
-            text="🎬 **Movie Search Mode**\n\nဇာတ်ကားရှာလိုပါက ကျေးဇူးပြု၍ အောက်ပါပုံစံအတိုင်း ရိုက်ထည့်ပါ:\n`/search [ဇာတ်ကားနာမည်]`\n\n(ဥပမာ - `/search avatar`)"
+            text="🎬 **Movie Search Mode**\n\nယခု Movie Mode ထဲသို့ ရောက်ရှိနေပါပြီ။ ရှာလိုသော ဇာတ်ကားနာမည်ကို **စာသားဖြင့် တိုက်ရိုက်ရိုက်ပို့ပေးပါ** (ဥပမာ - `avatar` ဟု ရိုက်ပို့ပါ)"
         )
+        return
     elif data == 'ent_scan':
         userbot_target = 8081029424  # သင့် userbot ရဲ့ ID
         try:
@@ -615,7 +617,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         except Exception as e:
             await query.edit_message_text(
-                text=f"❌ Userbot သို့ အမိန့်ပေးပို့ရာတွင် အမှားရှိနေပါသည်: {str(e)}\n(Userbot အကောင့်မှ Main Bot ကို /start လုပ်ထားခြင်း ရှိမရှိ စစ်ဆေးပါ။)"
+                text=f"❌ Userbot သို့ အမိန့်ပေးပို့ရာတွင် အမှားရှိနေပါသည်: {str(e)}\n(Userbot အကောင့်မှ Main Bot ကို /start လုပ်ထားခြင်း ရှိမရှိ စစ်ဆေးပါ။ if not, contact @mg_zawe_wint.)"
             )
         return    
     # 3. ပုံမှန် Main Menu သို့ ပြန်သွားရန်
@@ -812,6 +814,17 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if mode == 'ent_music':
         status_msg = await update.message.reply_text("🎧 သီချင်းကို ရှာနေပါပြီ... ခေတ္တစောင့်ပေးပါခင်ဗျာ...တောင်းဆိုမှုကို Assistant AI အား လွှဲပြောင်းပေးလိုက်ပါပြီ..")
         await process_and_send_song(chat_id, user_text, context, status_msg)
+        return
+	if mode == 'ent_movie':
+        await update.message.reply_text(f"🔍 '{user_text}' ကို ရှာဖွေနေပါပြီ ခဏစောင့်ပါ...")
+        userbot_target = 8081029424  # သင့် Userbot ID
+        try:
+            await context.bot.send_message(
+                chat_id=userbot_target, 
+                text=f"SEARCH_MOVIE:{user_text.lower()}:{chat_id}"
+            )
+        except Exception as e:
+            await update.message.reply_text(f"❌ ရှာဖွေရာတွင် အမှားရှိနေပါသည်: {str(e)}")
         return
 
     chosen_model = USER_SELECTED_MODELS.get(chat_id, DEFAULT_MODEL)
