@@ -395,7 +395,8 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         def transcribe_with_gemini():
             # mime_type ကို audio/ogg လို့ တိုက်ရိုက်သတ်မှတ်ပေးလိုက်ခြင်းဖြင့် error ကို ဖြေရှင်းနိုင်သည်
             audio_file = client.files.upload(
-                file=voice_path, mime_type="audio/ogg"
+                file=voice_path,
+				config={"mime_type": "audio/ogg"}
             )
             prompt = (
                 "Listen to this audio file and transcribe what was said"
