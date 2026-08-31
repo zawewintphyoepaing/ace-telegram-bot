@@ -605,14 +605,19 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     elif data == 'ent_scan':
         userbot_target = 8081029424  # သင့် userbot ရဲ့ ID
-        await context.bot.send_message(
-            chat_id=userbot_target,
-            text="SCAN_CHANNELS_AUTO"
-        )
-        await query.edit_message_text(
-            text="🔄 Movie Auto-Scan ဖတ်ရန် Assistant AI သို့ အမိန့်ပေးလိုက်ပါပြီ။ ခေတ္တစောင့်ဆိုင်းပေးပါခင်ဗျာ..."
-        )
-        return     
+        try:
+            await context.bot.send_message(
+                chat_id=userbot_target,
+                text="SCAN_CHANNELS_AUTO"
+            )
+            await query.edit_message_text(
+                text="🔄 Movie Auto-Scan ဖတ်ရန် Assistant AI သို့ အမိန့်ပေးလိုက်ပါပြီ။ ခေတ္တစောင့်ဆိုင်းပေးပါခင်ဗျာ..."
+            )
+        except Exception as e:
+            await query.edit_message_text(
+                text=f"❌ Userbot သို့ အမိန့်ပေးပို့ရာတွင် အမှားရှိနေပါသည်: {str(e)}\n(Userbot အကောင့်မှ Main Bot ကို /start လုပ်ထားခြင်း ရှိမရှိ စစ်ဆေးပါ။)"
+            )
+        return    
     # 3. ပုံမှန် Main Menu သို့ ပြန်သွားရန်
     elif data == 'back_to_main':
         keyboard = [
