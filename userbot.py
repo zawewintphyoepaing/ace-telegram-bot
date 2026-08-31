@@ -49,7 +49,7 @@ async def get_movie_title_from_poster(photo_bytes):
         response = await loop.run_in_executor(
             None,
             lambda: gemini_client.models.generate_content(
-                model='gemini-2.0-flash',
+                model='gemini-3.5-flash-lite',
                 contents=[
                     types.Part.from_bytes(data=photo_bytes, mime_type='image/jpeg'),
                     prompt
