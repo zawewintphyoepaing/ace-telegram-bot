@@ -3,7 +3,7 @@ import asyncio
 from telethon import events
 from telethon import TelegramClient
 from dotenv import load_dotenv
-
+from telethon.sessions import StringSession
 
 load_dotenv()
 
@@ -16,8 +16,7 @@ TARGET_SONGBOT = '@somgsforme_bot'
 ARCHIVE_CHANNEL_ID = -1003943796781 
 
 
-from telethon.sessions import StringSession
-import os
+
 
 api_id = int(os.getenv("USERBOT_API_ID"))
 api_hash = os.getenv("USERBOT_API_HASH")
