@@ -1,4 +1,8 @@
 python-telegram-bot
+telethon
+openai-whisper
+google-generativeai
+python-telegram-bot
 pyrogram
 tgcrypto
 google-genai
