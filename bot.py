@@ -793,6 +793,10 @@ async def process_and_send_song(chat_id, query, context, status_msg=None):
         await context.bot.send_message(chat_id=chat_id, text=f"❌ သီချင်းတောင်းဆိုရာတွင် အမှားအယွင်းရှိသွားပါတယ်။: {str(e)}")
 # --- NEW: Text Message Handler (စာသားဖြင့် မေးလာလျှင် ပြန်ဖြေရန်) ---
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+	sender = update.effective_user
+    if sender and sender.id == 8081029424:  # Userbot မှ လာသော စာသားဖြစ်ပါက handle_userbot_media သို့ လွှဲပေးမည်
+        await handle_userbot_media(update, context)
+        return
     chat_id = update.effective_chat.id
     user_text = update.message.text
     
@@ -1008,6 +1012,7 @@ async def handle_userbot_media(update, context):
         if sender and sender.id == 8081029424: # သင့် Userbot ID
             message_text = update.message.caption or update.message.text or ""
             
+            # (၁) Userbot မှ MOVIE_ID ပြန်ပို့လာပါက Archive Channel မှ မက်ဆေ့ခ်ျကို User ထံ Copy ပို့ပေးခြင်း
             if "MOVIE_ID:" in message_text:
                 parts = message_text.split(":")
                 msg_id = int(parts[1])
@@ -1020,9 +1025,20 @@ async def handle_userbot_media(update, context):
                         message_id=msg_id
                     )
                 except Exception as e:
-                    print(f"Copy message error: {e}")
-                    
-            elif "CHAT_ID:" in message_text:
+                    print(f"Movie Copy Error: {e}")
+                return
+
+            # (၂) ဇာတ်ကား ရှာမတွေ့ကြောင်း Userbot မှ ပြန်ပို့လာပါက အသုံးပြုသူထံ အကြောင်းကြားခြင်း
+            if "မတွေ့ရှိပါ" in message_text:
+                if "CHAT_ID:" in message_text:
+                    parts = message_text.split("CHAT_ID:")
+                    target_chat_id = int(parts[1].strip().split()[0])
+                    clean_msg = parts[0].strip()
+                    await context.bot.send_message(chat_id=target_chat_id, text=clean_msg)
+                return
+
+            # (၃) Songbot သီချင်းဖိုင် သို့မဟုတ် သာမန် Media ဖိုင်များ ပြန်လာပါက ပို့ပေးခြင်း
+            if "CHAT_ID:" in message_text:
                 try:
                     parts = message_text.split("CHAT_ID:")
                     target_chat_id = int(parts[1].strip().split()[0])
