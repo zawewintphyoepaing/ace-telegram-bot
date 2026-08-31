@@ -1,6 +1,6 @@
 FROM python:3.10-slim
 
-# System Dependencies များ တပ်ဆင်ခြင်း (WeasyPrint & FFmpeg)
+# System Dependencies (WeasyPrint & FFmpeg)
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libcairo2 \
