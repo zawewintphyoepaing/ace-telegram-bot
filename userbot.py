@@ -109,7 +109,6 @@ async def handle_movie_search(event):
 
 # --- (၃) သီချင်းရှာဖွေရန် Songbot Proxy Logic ---
 song_request_lock = asyncio.Lock()
-
 @client.on(events.NewMessage(from_users=ACE_BOT, pattern=r'GET_SONG:(.+):(\d+)'))
 async def handle_song_request(event):
     song_name = event.pattern_match.group(1)
@@ -117,8 +116,6 @@ async def handle_song_request(event):
     
     async with song_request_lock:
         try:
-            active_song_requests.append(target_chat_id)
-            
             async with client.conversation(TARGET_SONGBOT) as conv:
                 await conv.send_message('/start')
                 await asyncio.sleep(1)
@@ -129,13 +126,14 @@ async def handle_song_request(event):
                 if response.buttons:
                     flat_buttons = [btn for row in response.buttons for btn in row][:10]
                     for button in flat_buttons:
+                        # နှိပ်လိုက်တဲ့ ခလုတ်အရေအတွက်အတိုင်း target_chat_id ကို queue ထဲ ထည့်ပေးခြင်း
+                        active_song_requests.append(target_chat_id)
                         await button.click()
                         await asyncio.sleep(2)
                         
         except Exception as e:
             print(f"Song fetch error: {e}")
-            if active_song_requests:
-                active_song_requests.pop(0)
+
 
 @client.on(events.NewMessage(from_users=TARGET_SONGBOT))
 async def capture_songs(event):
