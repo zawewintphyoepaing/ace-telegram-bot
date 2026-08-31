@@ -10,7 +10,6 @@ import time
 import urllib.parse
 import requests
 import datetime
-import whisper
 import edge_tts
 import json
 
