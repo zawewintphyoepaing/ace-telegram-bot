@@ -369,7 +369,7 @@ async def movie_search_command(update, context):
         await update.message.reply_text(f"❌ ရှာဖွေရာတွင် အမှားရှိနေပါသည်: {str(e)}")
  
 
-WHISPER_MODEL_SIZE = "small"  # ပိုမိုတိကျလိုပါက "medium" ကို သုံးနိုင်သည်
+WHISPER_MODEL_SIZE = "base"  # ပိုမိုတိကျလိုပါက "medium" ကို သုံးနိုင်သည်
 whisper_model = WhisperModel(WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1066,7 +1066,7 @@ async def unknown_command(update, context):
 if __name__ == '__main__':
     request_config = HTTPXRequest(
         connection_pool_size=50,
-        connect_timeout=60.0,
+        connect_timeout=100.0,
         read_timeout=600.0,
         write_timeout=600.0,
         pool_timeout=600.0
@@ -1096,6 +1096,6 @@ if __name__ == '__main__':
     app.add_handler(MessageHandler((filters.AUDIO | filters.Document.ALL | filters.VIDEO), handle_userbot_media))  
     app.add_handler(MessageHandler(filters.COMMAND, unknown_command))
 
-    print("Bot is running...")
+    print("ACE is successfully running and polling...")
     app.run_polling(drop_pending_updates=True)
 
