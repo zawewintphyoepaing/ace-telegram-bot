@@ -13,40 +13,39 @@ def home():
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
-    # Threading ထဲမှာ Run တဲ့အတွက် use_reloader=False ထည့်ပေးရပါမယ်
     app.run(host="0.0.0.0", port=port, use_reloader=False)
 
 def keep_alive_process(script_name):
     while True:
-        print(f"[SYSTEM] Starting {script_name}...")
+        print(f"[SYSTEM] Starting {script_name}...", flush=True)
         try:
-            # stdout=sys.stdout ကိုသုံးမှ Render Dashboard မှာ Error လာပြပါမယ်
+            # Log များကို Buffer မလုပ်ဘဲ တိုက်ရိုက်ပြစေရန် PYTHONUNBUFFERED=1 သတ်မှတ်ခြင်း
+            env = os.environ.copy()
+            env["PYTHONUNBUFFERED"] = "1"
+
             process = subprocess.Popen(
                 [sys.executable, script_name],
                 stdout=sys.stdout,
-                stderr=sys.stderr
+                stderr=sys.stderr,
+                env=env
             )
-            process.wait()  # Process ပြီးဆုံး/ရပ်တန့်သွားသည်အထိ စောင့်မည်
-            print(f"[SYSTEM] ⚠️ {script_name} crashed or stopped! Restarting in 5 seconds...")
+            process.wait()
+            print(f"[SYSTEM] ⚠️ {script_name} stopped! Restarting in 5 seconds...", flush=True)
         except Exception as e:
-            print(f"[SYSTEM] ❌ Error running {script_name}: {e}")
+            print(f"[SYSTEM] ❌ Error running {script_name}: {e}", flush=True)
         
-        # Crash ဖြစ်သွားပါက 5 စက္ကန့်နားပြီးမှ ပြန်စမည် (Auto-healing)
         time.sleep(5)
 
 if __name__ == "__main__":
-    # 1. Render အတွက် Flask Web Server ကို Background Thread ဖြင့် စတင်ခြင်း
-    web_thread = threading.Thread(target=run_web)
-    web_thread.daemon = True
+    web_thread = threading.Thread(target=run_web, daemon=True)
     web_thread.start()
 
-    # 2. Userbot နှင့် Main Bot ကို Auto-Restart စနစ်ဖြင့် Thread များခွဲ၍ ပြိုင်တူ Run ခြင်း
-    t1 = threading.Thread(target=keep_alive_process, args=("userbot.py",))
-    t2 = threading.Thread(target=keep_alive_process, args=("bot.py",))
+    t1 = threading.Thread(target=keep_alive_process, args=("userbot.py",), daemon=True)
+    t2 = threading.Thread(target=keep_alive_process, args=("bot.py",), daemon=True)
 
     t1.start()
     t2.start()
 
-    # Main Thread မရပ်သွားစေရန် စောင့်ကြည့်ခြင်း
-    t1.join()
-    t2.join()
+    # Main Process မရပ်သွားစေရန်
+    while True:
+        time.sleep(3600)
