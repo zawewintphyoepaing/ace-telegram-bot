@@ -1042,7 +1042,8 @@ async def handle_userbot_media(update, context):
                 try:
                     parts = message_text.split("CHAT_ID:")
                     target_chat_id = int(parts[1].strip().split()[0])
-                    clean_caption = parts[0].strip() or "🎵 ACE မှ တင်ဆက်ပေးလိုက်ပါတယ်!"
+                    # Emoji များကို ဖယ်ထုတ်ပြီး ကျန်ရှိသည့်စာသားကို သန့်စင်ခြင်း
+                    clean_caption = parts[0].replace("🎵", "").strip() or "🎵 ACE မှ တင်ဆက်ပေးလိုက်ပါတယ်!"
                 except Exception as parse_err:
                     print(f"Chat ID parse error: {parse_err}")
                     return
