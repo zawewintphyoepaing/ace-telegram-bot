@@ -73,7 +73,7 @@ async def scan_and_forward(event=None):
     try:
         existing_titles = set()
         async for arch_msg in client.iter_messages(ARCHIVE_CHANNEL_ID):
-            arch_title = arch_msg.caption or arch_msg.text or ""
+            arch_title = arch_msg.text or ""
             if arch_title:
                 for line in arch_title.split('\n'):
                     clean_l = line.strip().lower()
@@ -96,12 +96,13 @@ async def scan_and_forward(event=None):
                         # (၁) ဗီဒီယို သို့မဟုတ် Document ဆိုရင် တန်းသိမ်းမည်
                         if message.video or message.document:
                             should_save = True
-                            raw_title = message.caption or getattr(message.video or message.document, 'file_name', None) or f"media_{message.id}"
+                            # caption အစား text သုံးပါမည်
+                            raw_title = message.text or getattr(message.video or message.document, 'file_name', None) or f"media_{message.id}"
                             clean_title = raw_title.split("\n")[0].strip()
 
                         # (၂) ပုံ (Photo) ဆိုရင် Caption ထဲမှာ လင့်ခ် ပါမှ သိမ်းမည် + Gemini AI ဖြင့် နာမည် ဖတ်မည်
                         elif message.photo:
-                            if message.caption and url_pattern.search(message.caption):
+                            if message.text and url_pattern.search(message.text):
                                 photo_bytes = await client.download_media(message.photo, file=bytes)
                                 verified_title = await get_movie_title_from_poster(photo_bytes)
                                 
@@ -109,7 +110,7 @@ async def scan_and_forward(event=None):
                                     clean_title = verified_title
                                     is_photo_with_poster = True
                                 else:
-                                    clean_title = message.caption.split("\n")[0].strip()
+                                    clean_title = message.text.split("\n")[0].strip()
                                 
                                 should_save = True
 
@@ -122,8 +123,8 @@ async def scan_and_forward(event=None):
                         if should_save and clean_title:
                             if clean_title.lower() not in existing_titles:
                                 if is_photo_with_poster:
-                                    # Poster ပုံဖြစ်ပါက အင်္ဂလိပ် နာမည်ပါ Search မိအောင် Caption တွင် ထည့်သိမ်းမည်
-                                    new_caption = f"{message.caption}\n\n🎬 **Detected Title:** {clean_title}"
+                                    # message.text ဖြင့် တွဲရေးပါမည်
+                                    new_caption = f"{message.text or ''}\n\n🎬 **Detected Title:** {clean_title}"
                                     await client.send_file(ARCHIVE_CHANNEL_ID, message.photo, caption=new_caption)
                                 else:
                                     await client.forward_messages(ARCHIVE_CHANNEL_ID, message)
