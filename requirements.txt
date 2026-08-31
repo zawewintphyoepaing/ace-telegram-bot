@@ -1,0 +1,9 @@
+python-telegram-bot
+pyrogram
+tgcrypto
+google-genai
+faster-whisper
+edge-tts
+weasyprint
+requests
+python-dotenv
