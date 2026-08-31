@@ -2,8 +2,8 @@ import os
 import asyncio
 from telethon import events
 from telethon import TelegramClient
-from dotenv import load_dotenv
 from telethon.sessions import StringSession
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -15,24 +15,19 @@ ACE_BOT = '@ace_study_ass_bot'
 TARGET_SONGBOT = '@somgsforme_bot'
 ARCHIVE_CHANNEL_ID = -1003943796781 
 
-
-
-
-api_id = int(os.getenv("USERBOT_API_ID"))
-api_hash = os.getenv("USERBOT_API_HASH")
-
-# Session String ကို ဖတ်ရန်
+# SESSION_STRING စစ်ဆေးပြီး ချိတ်ဆက်ခြင်း
 session_string = os.getenv("SESSION_STRING")
 if session_string:
     client = TelegramClient(StringSession(session_string), api_id, api_hash)
 else:
     client = TelegramClient('my_userbot', api_id, api_hash)
-active_song_requests = {}
+
+active_song_requests = []
 
 # --- (၁) ဇာတ်ကား အားလုံး (Video, Document, Photo Poster, Link) များကို Scan ဖတ်ပြီး Private Channel သို့ ပို့ရန် ---
 async def scan_and_forward(event=None):
     if event: await event.reply("🔄 Userbot မှ ဇာတ်ကားများနှင့် Poster များကို စတင် Scan ဖတ်နေပါပြီ...")
-    else: print("🕒 နေ့စဥ်အလိုအလျောက် Auto-Scan စတင်နေပါပြီ...")
+    else: print("🕒 နေ့စဉ်အလိုအလျောက် Auto-Scan စတင်နေပါပြီ...")
     
     added_count = 0
     scanned_channels = 0
@@ -54,18 +49,16 @@ async def scan_and_forward(event=None):
                         if getattr(message, 'action', None): continue
                         
                         title = None
-                        # Video, Document, Photo (Poster) သို့မဟုတ် Text Link များ စစ်ဆေးခြင်း
                         if message.video or message.document:
                             title = message.caption or getattr(message.video or message.document, 'file_name', None) or ""
                         elif message.photo:
-                            title = message.caption or ""  # Poster ပုံနှင့်အတူပါလာသော ဇာတ်ကားနာမည်/လင့်ခ်
+                            title = message.caption or ""
                         elif message.text and "http" in message.text:
                             title = message.text
 
                         if title:
                             clean_title = title.split("\n")[0].strip()
                             if clean_title and clean_title.lower() not in existing_titles:
-                                # Archive Channel ဆီသို့ Forward ပို့မည် (Poster Photo များနှင့်တကွ ပါဝင်မည်)
                                 await client.forward_messages(ARCHIVE_CHANNEL_ID, message)
                                 existing_titles.add(clean_title.lower())
                                 added_count += 1
@@ -102,7 +95,6 @@ async def handle_movie_search(event):
         found_count = 0
         async for msg in client.iter_messages(ARCHIVE_CHANNEL_ID, search=query, limit=5):
             found_count += 1
-            # Message ID ကို Main Bot ဆီသို့ ပို့ပေးမည် (Poster Photo ဖြစ်စေ၊ Video ဖြစ်စေ ID တူတူပဲ သုံးနိုင်သည်)
             await client.send_message(
                 ACE_BOT, 
                 f"MOVIE_ID:{msg.id}:CHAT_ID:{target_chat_id}"
@@ -115,13 +107,8 @@ async def handle_movie_search(event):
     except Exception as e:
         print(f"Movie search error: {e}")
 
-
-
-# --- (၂) သီချင်းရှာဖွေရန် Songbot Proxy Logic ---
-song_request_lock = asyncio.Lock() # Lock အသစ်ဆောက်ပါ
-
-# userbot.py ထဲတွင် active_song_requests ကို list အဖြစ် ပြောင်းပါ
-active_song_requests = []
+# --- (၃) သီချင်းရှာဖွေရန် Songbot Proxy Logic ---
+song_request_lock = asyncio.Lock()
 
 @client.on(events.NewMessage(from_users=ACE_BOT, pattern=r'GET_SONG:(.+):(\d+)'))
 async def handle_song_request(event):
@@ -130,7 +117,6 @@ async def handle_song_request(event):
     
     async with song_request_lock:
         try:
-            # တောင်းဆိုသူ၏ target_chat_id ကို Queue ထဲသို့ ထည့်ပါ
             active_song_requests.append(target_chat_id)
             
             async with client.conversation(TARGET_SONGBOT) as conv:
@@ -154,19 +140,15 @@ async def handle_song_request(event):
 @client.on(events.NewMessage(from_users=TARGET_SONGBOT))
 async def capture_songs(event):
     if event.media and active_song_requests:
-        # ရှေ့ဆုံးမှ တောင်းဆိုထားသူ၏ chat_id ကို ယူပြီး ပို့ပေးပါ
         target_chat_id = active_song_requests.pop(0)
         caption_text = f"🎵 CHAT_ID:{target_chat_id}"
         
         await client.send_file(ACE_BOT, event.media, caption=caption_text)
-
 
 # --- (၄) ပရိုဂရမ် စတင်ခြင်း ---
 if __name__ == '__main__':
     print("⚡ Userbot စတင် အလုပ်လုပ်နေပြီ...")
     client.start()
     
-    # နေ့စဉ် အလိုအလျောက် Scan ဖတ်မည့် Task ကို Run မည်
     client.loop.create_task(daily_auto_scan())
-    
     client.run_until_disconnected()
