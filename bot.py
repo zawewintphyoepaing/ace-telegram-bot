@@ -393,11 +393,17 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # ၂။ Gemini API (Flash-Lite / Flash) ဖြင့် အသံဖိုင်ကို တိုက်ရိုက်ဖတ်၍ စာသားပြောင်းခြင်း (RAM လုံးဝမစားပါ)
         def transcribe_with_gemini():
-            audio_file = client.files.upload(file=voice_path)
-            prompt = "Listen to this audio file and transcribe what was said accurately into Burmese or the language spoken. Output only the transcript text."
+            # mime_type ကို audio/ogg လို့ တိုက်ရိုက်သတ်မှတ်ပေးလိုက်ခြင်းဖြင့် error ကို ဖြေရှင်းနိုင်သည်
+            audio_file = client.files.upload(
+                file=voice_path, mime_type="audio/ogg"
+            )
+            prompt = (
+                "Listen to this audio file and transcribe what was said"
+                " accurately into Burmese or the language spoken. Output only"
+                " the transcript text."
+            )
             response = client.models.generate_content(
-                model=chosen_model,  
-                contents=[audio_file, prompt]
+                model=chosen_model, contents=[audio_file, prompt]
             )
             try:
                 client.files.delete(name=audio_file.name)
