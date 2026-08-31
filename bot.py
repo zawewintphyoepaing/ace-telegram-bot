@@ -598,8 +598,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text="🎵 **Music Finder Mode**\n\nယခု Music Mode ထဲသို့ ရောက်ရှိနေပါပြီ။ ရှာလိုသော သီချင်းနာမည်ကို **စာသားဖြင့် တိုက်ရိုက်ရိုက်ပို့ပေးပါ** (ဥပမာ - `Faded` ဟု ရိုက်ပို့ပါ)"
         )
         return
-        
-   elif data == 'ent_movie':
+    elif data == 'ent_movie':
         USER_MODES[chat_id] = 'ent_movie'
         await query.edit_message_text(
             text="🎬 **Movie Search Mode**\n\nယခု Movie Mode ထဲသို့ ရောက်ရှိနေပါပြီ။ ရှာလိုသော ဇာတ်ကားနာမည်ကို **စာသားဖြင့် တိုက်ရိုက်ရိုက်ပို့ပေးပါ** (ဥပမာ - `avatar` ဟု ရိုက်ပို့ပါ)"
