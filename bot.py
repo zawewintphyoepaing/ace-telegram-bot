@@ -28,7 +28,6 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from telegram.request import HTTPXRequest
 from telegram.error import BadRequest
-from faster_whisper import WhisperModel
 from dotenv import load_dotenv
 
 HF_API_URL = "https://api-inference.huggingface.co/models/timbrooks/instruct-pix2pix"
@@ -367,15 +366,9 @@ async def movie_search_command(update, context):
         )
     except Exception as e:
         await update.message.reply_text(f"❌ ရှာဖွေရာတွင် အမှားရှိနေပါသည်: {str(e)}")
- 
-
-WHISPER_MODEL_SIZE = "base"  # ပိုမိုတိကျလိုပါက "medium" ကို သုံးနိုင်သည်
-whisper_model = WhisperModel(WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
-
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     
-    # အသံဖိုင် ပါမပါ ကြိုတင်စစ်ဆေးခြင်း
     if not update.message.voice:
         await update.message.reply_text("ကျေးဇူးပြု၍ အသံဖိုင် (Voice message) ကို ပို့ပေးပါ။")
         return
@@ -385,49 +378,43 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     USER_CLIENTS[chat_id] = client
 
     voice_path = f"user_voice_{chat_id}.ogg"
-    output_voice_path = f"bot_reply_{chat_id}.mp3"
+    output_voice_path = f"bot_reply_{chat_id}.ogg"
 
     try:
         # ၁။ Telegram အသံဖိုင်ကို ဒေါင်းလုပ်ဆွဲခြင်း
         voice_file = await update.message.voice.get_file()
         await voice_file.download_to_drive(voice_path)
 
-        # ဖိုင်အရွယ်အစားကို စစ်ဆေးခြင်း
         if os.path.getsize(voice_path) < 1000:
             await update.message.reply_text("အသံဖိုင် အချက်အလက် မပြည့်စုံပါ။ ကျေးဇူးပြု၍ အသံကို တစ်ချက်လောက် ထပ်ပို့ပေးပါ။")
             return
 
-        # ၂။ Voice to Text (faster-whisper ဖြင့် Local တွင် ကိုယ်တိုင်ပြောင်းခြင်း - Free & No API Key)
-        try:
-            def transcribe_local():
-                segments, info = whisper_model.transcribe(
-                    voice_path,
-                    beam_size=5,
-                    initial_prompt="မြန်မာဘာသာစကားနှင့် English ဘာသာစကား ဖြစ်ပါသည်။"
-                )
-                full_text = " ".join([segment.text for segment in segments])
-                return full_text
+        await context.bot.send_chat_action(chat_id=chat_id, action="typing")
 
-            user_text = await asyncio.to_thread(transcribe_local)
-        except Exception as stt_err:
-            print(f"Faster-Whisper Error: {stt_err}")
-            await update.message.reply_text("အသံကို စာသားပြောင်းရာတွင် ချို့ယွင်းချက် ရှိသွားပါသည်။ ကျေးဇူးပြု၍ စာသားဖြင့် ပြန်ပြောပေးပါ။")
-            return
+        # ၂။ Gemini API (Flash-Lite / Flash) ဖြင့် အသံဖိုင်ကို တိုက်ရိုက်ဖတ်၍ စာသားပြောင်းခြင်း (RAM လုံးဝမစားပါ)
+        def transcribe_with_gemini():
+            audio_file = client.files.upload(file=voice_path)
+            prompt = "Listen to this audio file and transcribe what was said accurately into Burmese or the language spoken. Output only the transcript text."
+            response = client.models.generate_content(
+                model=chosen_model,  
+                contents=[audio_file, prompt]
+            )
+            try:
+                client.files.delete(name=audio_file.name)
+            except:
+                pass
+            return response.text
 
-        print(f"Local Transcription: {user_text}")
+        user_text = await asyncio.to_thread(transcribe_with_gemini)
+        print(f"Gemini Audio Transcription: {user_text}")
 
         if not user_text or not user_text.strip():
             user_text = "မင်္ဂလာပါ"
 
-        # ၃။ Text to Text (Gemini)
-        # ၃။ Text to Text (Gemini) - ယောက်ျား သို့မဟုတ် မိန်းကလေး ပုံစံ ရွေးချယ်ခိုင်းခြင်း
+        # ၃။ Text to Text (Gemini Chat Session ဖြင့် အဖြေရှာခြင်း)
         dynamic_system_instruction = (
             f"Today's current date is {current_date_str} and the current time is {current_time_str}. "
             "You are ACE, an intelligent AI academic assistant developed by @mg_zawe_wint. "
-            "Analyze the user's input style: "
-            "1. If the user's style or request implies a female persona/perspective, reply using female polite particles ('ရှင်') and maintain a feminine tone. "
-            "2. Otherwise, default to a male persona using Burmese male polite particles ('ခင်ဗျာ' or 'ဗျာ') strictly and never use 'ရှင်'. "
-            "3. Don,t mix 'ခင်ဗျာ' or 'ဗျာ' and 'ရှင်' in a single response."
             "Always reply in the exact same language that the user uses."
         )
 
@@ -441,7 +428,8 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_session.send_message,
             user_text
         )
-        reply_text = response.text or "တောင်းပန်ပါတယ်၊ အဖြေထုတ်လို့ မရပါဘူး။"
+        
+		reply_text = response.text or "တောင်းပန်ပါတယ်၊ အဖြေထုတ်လို့ မရပါဘူး။"
         clean_text = reply_text
         clean_text = clean_text.replace("<p>", "").replace("</p>", "\n")
         clean_text = clean_text.replace("<em>", "").replace("</em>", "\n")
@@ -455,53 +443,44 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         clean_text = clean_text.replace("<div>", "").replace("</div>", "")
         clean_text = clean_text.replace("<html>", "").replace("</html>", "")
         clean_text = clean_text.replace("<body>", "").replace("</body>", "")
+        for tag in ["<p>", "</p>", "<em>", "</em>", "<ul>", "</ul>", "<strong>", "</strong>", "<b>", "</b>", "<i>", "</i>", "<div>", "</div>", "<html>", "</html>", "<body>", "</body>"]:
+            clean_text = clean_text.replace(tag, "")
+        clean_text = clean_text.replace("<li>", "• ").replace("</li>", "\n")
 
-        # ၄။ Text to Voice (အဖြေစာသားထဲပါသည့် ပုံစံကိုကြည့်၍ ယောက်ျားသံ သို့မဟုတ် မိန်းကလေးသံ ရွေးချယ်ခြင်း)
+        # ၄။ Text to Voice (Edge-TTS ဖြင့် .ogg ဖော်မတ်ဖြင့် သိမ်းဆည်းခြင်း)
         try:
             import re
-         # ဖြေထားသော စာသားထဲတွင် မြန်မာအက္ခရာ ပါဝင်မှု ရှိမရှိ စစ်ဆေးခြင်း
             myanmar_chars = re.findall(r'[\u1000-\u139F]', reply_text)
-
-         # အကယ်၍ မြန်မာအက္ခရာ စုစုပေါင်း အရေအတွက်က တစ်ခုခုထက် ပိုများနေလျှင် မြန်မာသံကို သုံးမည်
-         # (အင်္ဂလိပ် ဝေါဟာရ ၃ လုံးလောက် ပါလာသော်လည်း မြန်မာစာက ပိုများနေမည်ဖြစ်므로 မြန်မာသံထွက်လာမည်)
             if len(myanmar_chars) > 5:
-                if "ရှင်" in reply_text:
-                    voice_name = "my-MM-NilarNeural"     # မြန်မာ မိန်းကလေးသံ
-                else:
-                    voice_name = "my-MM-ThihaNeural"     # မြန်မာ ယောက်ျားသံ
+                voice_name = "my-MM-NilarNeural" if "ရှင်" in reply_text else "my-MM-ThihaNeural"
             else:
-             # အင်္ဂလိပ်စာကြောင်း သက်သက် သို့မဟုတ် အင်္ဂလိပ်စာ ပိုများမှသာ အင်္ဂလိပ်သံသုံးမည်
-                if "female" in user_text.lower() or "girl" in user_text.lower():
-                    voice_name = "en-US-JennyNeural"      # အင်္ဂလိပ် မိန်းကလေးသံ
-                else:
-                    voice_name = "en-US-ChristopherNeural" # အင်္ဂလိပ် ယောက်ျားသံ
+                voice_name = "en-US-JennyNeural" if "female" in user_text.lower() else "en-US-ChristopherNeural"
+                
             communicate = edge_tts.Communicate(clean_text, voice_name)
             await communicate.save(output_voice_path)
         except Exception as tts_err:
             print(f"Edge-TTS Error: {tts_err}")
             await update.message.reply_text(reply_text)
             return
-       # အသံဖိုင် အောင်မြင်စွာ ပို့ခြင်း
+
+        # ၅။ Telegram သို့ လှိုင်းတွန့်ပါသော Voice Note ပုံစံဖြင့် ပြန်လည်ပို့ဆောင်ခြင်း
         with open(output_voice_path, 'rb') as audio:
             await update.message.reply_voice(voice=audio)
 
     except Exception as e:
         print(f"General error in voice pipeline: {e}")
-        await update.message.reply_text("တောင်းပန်ပါတယ်၊ အသံဖိုင် လုပ်ဆောင်ရာတွင် မမျှော်လင့်ထားသော အမှားအယွင်း ရှိသွားပါသည်။")
+        await update.message.reply_text("တောင်းပန်ပါတယ်၊ အသံဖိုင် လုပ်ဆောင်ရာတွင် အမှားအယွင်း ရှိသွားပါသည်။")
 
     finally:
-        # ၅။ ယာယီဖိုင်များ သန့်စင်ခြင်း
         if os.path.exists(voice_path):
-            try:
-                os.remove(voice_path)
-            except Exception as e:
-                print(f"Failed to remove user voice file: {e}")
-                
+            try: os.remove(voice_path)
+            except: pass
         if os.path.exists(output_voice_path):
-            try:
-                os.remove(output_voice_path)
-            except Exception as e:
-                print(f"Failed to remove bot reply audio file: {e}")
+            try: os.remove(output_voice_path)
+            except: pass 
+
+
+       
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Hi, I am ACE✨ ,")
