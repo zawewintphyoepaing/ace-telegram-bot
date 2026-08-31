@@ -795,7 +795,7 @@ async def process_and_send_song(chat_id, query, context, status_msg=None):
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sender = update.effective_user
     if sender and sender.id == 8081029424:  # Userbot မှ လာသော စာသားဖြစ်ပါက handle_userbot_media သို့ လွှဲပေးမည်
-    await handle_userbot_media(update, context)
+        await handle_userbot_media(update, context)
         return
     chat_id = update.effective_chat.id
     user_text = update.message.text
