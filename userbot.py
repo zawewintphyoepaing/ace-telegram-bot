@@ -101,6 +101,7 @@ async def scan_and_forward(event=None):
                             clean_title = raw_title.split("\n")[0].strip()
 
                         # (၂) ပုံ (Photo) ဆိုရင် Caption ထဲမှာ လင့်ခ် ပါမှ သိမ်းမည် + Gemini AI ဖြင့် နာမည် ဖတ်မည်
+                    
                         elif message.photo:
                             if message.text and url_pattern.search(message.text):
                                 photo_bytes = await client.download_media(message.photo, file=bytes)
@@ -113,6 +114,10 @@ async def scan_and_forward(event=None):
                                     clean_title = message.text.split("\n")[0].strip()
                                 
                                 should_save = True
+                                
+                                # 🛑 Gemini API ကို ခေါ်ပြီးတိုင်း ၁ မိနစ် (စက္ကန့် ၆၀) တိတိ ခေတ္တဆိုင်းငံ့မည်
+                                print("⏳ Gemini API တွင် ဝန်မပိစေရန် ၁ မိနစ် (စက္ကန့် ၆၀) စောင့်ဆိုင်းနေပါသည်...")
+                                await asyncio.sleep(60)
 
                         # (၃) စာသားသီးသန့် (Text) ဆိုရင် လင့်ခ် ပါမှ သိမ်းမည်
                         elif message.text and url_pattern.search(message.text):
