@@ -1,7 +1,9 @@
 import os
 import asyncio
-from telethon import events
-from telethon import TelegramClient
+import re
+from google import genai
+from google.genai import types
+from telethon import events, TelegramClient
 from telethon.sessions import StringSession
 from dotenv import load_dotenv
 
@@ -9,11 +11,17 @@ load_dotenv()
 
 api_id = int(os.getenv("USERBOT_API_ID"))
 api_hash = os.getenv("USERBOT_API_HASH")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 ACE_BOT_ID = 8255035281
 ACE_BOT = '@ace_study_ass_bot'   
 TARGET_SONGBOT = '@somgsforme_bot'
 ARCHIVE_CHANNEL_ID = -1003943796781 
+
+url_pattern = re.compile(r'https?://[^\s]+')
+
+# Gemini Client စတင်ခြင်း
+gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 
 # SESSION_STRING စစ်ဆေးပြီး ချိတ်ဆက်ခြင်း
 session_string = os.getenv("SESSION_STRING")
@@ -23,6 +31,36 @@ else:
     client = TelegramClient('my_userbot', api_id, api_hash)
 
 active_song_requests = []
+
+# --- Poster ပုံမှ Movie Title ကို Gemini Vision ဖြင့် ဖတ်ယူ စစ်ဆေးမည့် Function ---
+async def get_movie_title_from_poster(photo_bytes):
+    try:
+        prompt = (
+            "Analyze this movie poster image carefully.\n"
+            "1. Read the exact text written on the poster (OCR).\n"
+            "2. Identify the official standard English movie title and release year.\n"
+            "3. Search and double check standard movie database naming if needed.\n"
+            "Output ONLY the title and year in this exact format: 'Movie Title (YYYY)'.\n"
+            "If it is not a movie poster or text is unreadable, reply with 'UNKNOWN'."
+        )
+        
+        # Telethon Event Loop မပိတ်ဆို့စေရန် Thread Executor ဖြင့် Run ခြင်း
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None,
+            lambda: gemini_client.models.generate_content(
+                model='gemini-2.0-flash',
+                contents=[
+                    types.Part.from_bytes(data=photo_bytes, mime_type='image/jpeg'),
+                    prompt
+                ]
+            )
+        )
+        detected_title = response.text.strip()
+        return detected_title if "UNKNOWN" not in detected_title else None
+    except Exception as e:
+        print(f"Gemini Vision Error: {e}")
+        return None
 
 # --- (၁) ဇာတ်ကား အားလုံး (Video, Document, Photo Poster, Link) များကို Scan ဖတ်ပြီး Private Channel သို့ ပို့ရန် ---
 async def scan_and_forward(event=None):
@@ -37,7 +75,10 @@ async def scan_and_forward(event=None):
         async for arch_msg in client.iter_messages(ARCHIVE_CHANNEL_ID):
             arch_title = arch_msg.caption or arch_msg.text or ""
             if arch_title:
-                existing_titles.add(arch_title.split('\n')[0].strip().lower())
+                for line in arch_title.split('\n'):
+                    clean_l = line.strip().lower()
+                    if clean_l:
+                        existing_titles.add(clean_l)
                 
         async for dialog in client.iter_dialogs():
             if dialog.is_channel or dialog.is_group:
@@ -48,24 +89,52 @@ async def scan_and_forward(event=None):
                     async for message in client.iter_messages(dialog.entity, limit=500):
                         if getattr(message, 'action', None): continue
                         
-                        title = None
-                        if message.video or message.document:
-                            title = message.caption or getattr(message.video or message.document, 'file_name', None) or ""
-                        elif message.photo:
-                            title = message.caption or ""
-                        elif message.text and "http" in message.text:
-                            title = message.text
+                        clean_title = None
+                        should_save = False
+                        is_photo_with_poster = False
 
-                        if title:
-                            clean_title = title.split("\n")[0].strip()
-                            if clean_title and clean_title.lower() not in existing_titles:
-                                await client.forward_messages(ARCHIVE_CHANNEL_ID, message)
+                        # (၁) ဗီဒီယို သို့မဟုတ် Document ဆိုရင် တန်းသိမ်းမည်
+                        if message.video or message.document:
+                            should_save = True
+                            raw_title = message.caption or getattr(message.video or message.document, 'file_name', None) or f"media_{message.id}"
+                            clean_title = raw_title.split("\n")[0].strip()
+
+                        # (၂) ပုံ (Photo) ဆိုရင် Caption ထဲမှာ လင့်ခ် ပါမှ သိမ်းမည် + Gemini AI ဖြင့် နာမည် ဖတ်မည်
+                        elif message.photo:
+                            if message.caption and url_pattern.search(message.caption):
+                                photo_bytes = await client.download_media(message.photo, file=bytes)
+                                verified_title = await get_movie_title_from_poster(photo_bytes)
+                                
+                                if verified_title:
+                                    clean_title = verified_title
+                                    is_photo_with_poster = True
+                                else:
+                                    clean_title = message.caption.split("\n")[0].strip()
+                                
+                                should_save = True
+
+                        # (၃) စာသားသီးသန့် (Text) ဆိုရင် လင့်ခ် ပါမှ သိမ်းမည်
+                        elif message.text and url_pattern.search(message.text):
+                            should_save = True
+                            clean_title = message.text.split("\n")[0].strip()
+
+                        # သိမ်းဖို့ သတ်မှတ်ချက်နဲ့ ကိုက်ညီရင် သိမ်းမည်
+                        if should_save and clean_title:
+                            if clean_title.lower() not in existing_titles:
+                                if is_photo_with_poster:
+                                    # Poster ပုံဖြစ်ပါက အင်္ဂလိပ် နာမည်ပါ Search မိအောင် Caption တွင် ထည့်သိမ်းမည်
+                                    new_caption = f"{message.caption}\n\n🎬 **Detected Title:** {clean_title}"
+                                    await client.send_file(ARCHIVE_CHANNEL_ID, message.photo, caption=new_caption)
+                                else:
+                                    await client.forward_messages(ARCHIVE_CHANNEL_ID, message)
+                                    
                                 existing_titles.add(clean_title.lower())
                                 added_count += 1
                                 await asyncio.sleep(0.5)
                                 
                     await asyncio.sleep(2)
-                except Exception:
+                except Exception as e:
+                    print(f"Error scanning dialog: {e}")
                     continue
                     
         msg = f"✅ **Scan ပြီးဆုံးပါပြီ!**\n📂 ချန်နယ်: {scanned_channels} ခု\n✨ အသစ်သိမ်းဆည်းနိုင်ခဲ့သော ဇာတ်ကား/Poster အရေအတွက်: {added_count} ခု"
@@ -126,14 +195,12 @@ async def handle_song_request(event):
                 if response.buttons:
                     flat_buttons = [btn for row in response.buttons for btn in row][:10]
                     for button in flat_buttons:
-                        # နှိပ်လိုက်တဲ့ ခလုတ်အရေအတွက်အတိုင်း target_chat_id ကို queue ထဲ ထည့်ပေးခြင်း
                         active_song_requests.append(target_chat_id)
                         await button.click()
                         await asyncio.sleep(2)
                         
         except Exception as e:
             print(f"Song fetch error: {e}")
-
 
 @client.on(events.NewMessage(from_users=TARGET_SONGBOT))
 async def capture_songs(event):
