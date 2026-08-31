@@ -142,12 +142,12 @@ async def scan_and_forward(event=None):
         else: print(msg)
 
     except Exception as e:
-        if event: await event.reply(f"❌ Scan ဖတ်ရာတွင် အမှား: {str(e)}")
-
-@client.on(events.NewMessage(chats=ACE_BOT_ID, pattern="SCAN_CHANNELS_AUTO"))
+        error_msg = f"❌ Scan ဖတ်ရာတွင် အမှား: {str(e)}"
+        print(error_msg)
+        if event: await event.reply(error_msg)
+@client.on(events.NewMessage(from_users=ACE_BOT, pattern="SCAN_CHANNELS_AUTO"))
 async def handle_auto_scan(event):
     await scan_and_forward(event)
-
 async def daily_auto_scan():
     await asyncio.sleep(15)
     while True:
