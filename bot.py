@@ -429,7 +429,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_text
         )
         
-		reply_text = response.text or "တောင်းပန်ပါတယ်၊ အဖြေထုတ်လို့ မရပါဘူး။"
+        reply_text = response.text or "တောင်းပန်ပါတယ်၊ အဖြေထုတ်လို့ မရပါဘူး။"
         clean_text = reply_text
         clean_text = clean_text.replace("<p>", "").replace("</p>", "\n")
         clean_text = clean_text.replace("<em>", "").replace("</em>", "\n")
