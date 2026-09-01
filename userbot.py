@@ -14,7 +14,7 @@ api_hash = os.getenv("USERBOT_API_HASH")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY_3")
 
 ACE_BOT_ID = 8255035281
-ACE_BOT = '@ace_study_ass_bot'   
+ACE_BOT = '@ace_study_ass_bot'    
 TARGET_SONGBOT = '@somgsforme_bot'
 ARCHIVE_CHANNEL_ID = -1003943796781 
 
@@ -65,7 +65,7 @@ async def get_movie_title_from_poster(photo_bytes):
 # --- (၁) ဇာတ်ကား အားလုံး (Video, Document, Photo Poster, Link) များကို Scan ဖတ်ပြီး Private Channel သို့ ပို့ရန် ---
 async def scan_and_forward(event=None):
     if event: await event.reply("🔄 Userbot မှ ဇာတ်ကားများနှင့် Poster များကို စတင် Scan ဖတ်နေပါပြီ...")
-    else: print("🕒 နေ့စဉ်အလိုအလျောက် Auto-Scan စတင်နေပါပြီ...")
+    else: print("🕒 Manual Scan စတင်နေပါပြီ...")
     
     added_count = 0
     scanned_channels = 0
@@ -96,12 +96,10 @@ async def scan_and_forward(event=None):
                         # (၁) ဗီဒီယို သို့မဟုတ် Document ဆိုရင် တန်းသိမ်းမည်
                         if message.video or message.document:
                             should_save = True
-                            # caption အစား text သုံးပါမည်
                             raw_title = message.text or getattr(message.video or message.document, 'file_name', None) or f"media_{message.id}"
                             clean_title = raw_title.split("\n")[0].strip()
 
                         # (၂) ပုံ (Photo) ဆိုရင် Caption ထဲမှာ လင့်ခ် ပါမှ သိမ်းမည် + Gemini AI ဖြင့် နာမည် ဖတ်မည်
-                    
                         elif message.photo:
                             if message.text and url_pattern.search(message.text):
                                 photo_bytes = await client.download_media(message.photo, file=bytes)
@@ -128,7 +126,6 @@ async def scan_and_forward(event=None):
                         if should_save and clean_title:
                             if clean_title.lower() not in existing_titles:
                                 if is_photo_with_poster:
-                                    # message.text ဖြင့် တွဲရေးပါမည်
                                     new_caption = f"{message.text or ''}\n\n🎬 **Detected Title:** {clean_title}"
                                     await client.send_file(ARCHIVE_CHANNEL_ID, message.photo, caption=new_caption)
                                 else:
@@ -151,14 +148,10 @@ async def scan_and_forward(event=None):
         error_msg = f"❌ Scan ဖတ်ရာတွင် အမှား: {str(e)}"
         print(error_msg)
         if event: await event.reply(error_msg)
+
 @client.on(events.NewMessage(from_users=ACE_BOT, pattern="SCAN_CHANNELS_AUTO"))
 async def handle_auto_scan(event):
     await scan_and_forward(event)
-async def daily_auto_scan():
-    await asyncio.sleep(15)
-    while True:
-        await scan_and_forward()
-        await asyncio.sleep(86400)
 
 # --- (၂) Main Bot မှ ရှာခိုင်းသည့်အခါ Message ID ပို့ပေးရန် ---
 @client.on(events.NewMessage(from_users=ACE_BOT, pattern=r'SEARCH_MOVIE:(.+):(\d+)'))
@@ -226,5 +219,5 @@ if __name__ == '__main__':
     print("⚡ Userbot စတင် အလုပ်လုပ်နေပြီ...")
     client.start()
     
-    client.loop.create_task(daily_auto_scan())
+    # daily_auto_scan ကို ဖယ်ရှားလိုက်ပါပြီ
     client.run_until_disconnected()
