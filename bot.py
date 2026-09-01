@@ -962,8 +962,6 @@ async def process_batch(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
                     await handle_quiz_generation(chat_id, context, raw_text)
                     return
                 html_content = raw_text.replace("```html", "").replace("```", "").strip()
-
-                 # မြန်မာဖောင့် ချိတ်ဆက်ထားသော CSS Style ထည့်သွင်းခြင်း
                 styled_html = f"""
                 <html>
                 <head>
