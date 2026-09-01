@@ -462,7 +462,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 voice_name = "my-MM-NilarNeural" if "ရှင်" in reply_text else "my-MM-ThihaNeural"
             else:
                 voice_name = "en-US-JennyNeural" if "female" in user_text.lower() else "en-US-ChristopherNeural"
-                
+            clean_text = clean_text.replace("ACE", "အေ့စ်")    
             communicate = edge_tts.Communicate(clean_text, voice_name)
             await communicate.save(output_voice_path)
         except Exception as tts_err:
