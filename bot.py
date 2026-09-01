@@ -964,28 +964,28 @@ async def process_batch(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
                 html_content = raw_text.replace("```html", "").replace("```", "").strip()
 
                  # မြန်မာဖောင့် ချိတ်ဆက်ထားသော CSS Style ထည့်သွင်းခြင်း
-                 styled_html = f"""
-                 <html>
-                 <head>
-                 <style>
-                     @font-face {{
-                         font-family: 'Pyidaungsu';
-                         src: local('Pyidaungsu');
-                     }}
-                     body {{
-                         font-family: 'Pyidaungsu', sans-serif;
-                     }}
-                 </style>
-                 </head>
-                 <body>
-                 {html_content}
-                 </body>
-                 </html>
-                 """
+                styled_html = f"""
+                <html>
+                <head>
+                <style>
+                @font-face {{
+                    font-family: 'Pyidaungsu';
+                        src: local('Pyidaungsu');
+                    }}
+                    body {{
+                        font-family: 'Pyidaungsu', sans-serif;
+                    }}
+                </style>
+                </head>
+                <body>
+                {html_content}
+                </body>
+                </html>
+                """
 
-                 pdf_bytes = await asyncio.to_thread(
-                     lambda: HTML(string=styled_html).write_pdf()
-                 )
+                pdf_bytes = await asyncio.to_thread(
+                    lambda: HTML(string=styled_html).write_pdf()
+                )
                 pdf_stream = io.BytesIO(pdf_bytes)
                 pdf_stream.name = f"Study_Guide_{mode}.pdf"
 
