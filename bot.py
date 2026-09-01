@@ -961,13 +961,31 @@ async def process_batch(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
                 if mode == 'quiz':
                     await handle_quiz_generation(chat_id, context, raw_text)
                     return
+                 html_content = raw_text.replace("```html", "").replace("```", "").strip()
 
-                html_content = raw_text.replace("```html", "").replace("```", "").strip()
+                 # မြန်မာဖောင့် ချိတ်ဆက်ထားသော CSS Style ထည့်သွင်းခြင်း
+                 styled_html = f"""
+                 <html>
+                 <head>
+                 <style>
+                     @font-face {{
+                         font-family: 'Pyidaungsu';
+                         src: local('Pyidaungsu');
+                     }}
+                     body {{
+                         font-family: 'Pyidaungsu', sans-serif;
+                     }}
+                 </style>
+                 </head>
+                 <body>
+                 {html_content}
+                 </body>
+                 </html>
+                 """
 
-                pdf_bytes = await asyncio.to_thread(
-                    lambda: HTML(string=html_content).write_pdf()
-                )
-
+                 pdf_bytes = await asyncio.to_thread(
+                     lambda: HTML(string=styled_html).write_pdf()
+                 )
                 pdf_stream = io.BytesIO(pdf_bytes)
                 pdf_stream.name = f"Study_Guide_{mode}.pdf"
 
