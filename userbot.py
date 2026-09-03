@@ -2,6 +2,8 @@ import os
 import asyncio
 import re
 import unicodedata
+import base64
+from groq import AsyncGroq
 from google import genai
 from google.genai import types
 from telethon import events, TelegramClient
@@ -47,40 +49,76 @@ def sanitize_keyword(text: str) -> str:
     clean_text = re.sub(r'[\s\-_:=+.,!@#$%^&*()\[\]{}<>\/\\\'"]+', '', text)
     return clean_text
 
+
+
+# Groq API Keys များကို Env မှ ယူခြင်း
+GROQ_KEYS = [
+    os.getenv("GROQ_API_KEY_1"),
+    os.getenv("GROQ_API_KEY_2"),
+]
+GROQ_KEYS = [k for k in GROQ_KEYS if k]
+
+# Async Client များ ဖန်တီးခြင်း
+groq_clients = [AsyncGroq(api_key=key) for key in GROQ_KEYS]
+current_groq_index = 0
+
 async def get_movie_title_from_poster(photo_bytes):
+    global current_groq_index
+    if not groq_clients or not photo_bytes:
+        return None
+
+    # Groq Vision အတွက် Image Bytes ကို Base64 သို့ ပြောင်းခြင်း
+    base64_image = base64.b64encode(photo_bytes).decode('utf-8')
+    data_url = f"data:image/jpeg;base64,{base64_image}"
+
     prompt = (
         "Analyze this movie poster image carefully.\n"
         "1. Read the exact text written on the poster (OCR).\n"
         "2. Identify the official standard English movie title and release year.\n"
-        "3. Search and double check standard movie database naming if needed.\n"
         "Output ONLY the title and year in this exact format: 'Movie Title (YYYY)'.\n"
         "If it is not a movie poster or text is unreadable, reply with 'UNKNOWN'."
     )
-    
-    loop = asyncio.get_event_loop()
-    
-    for attempt in range(3): # Error တက်ရင် ၃ ကြိမ်အထိ ပြန်ကြိုးစားမည်
+
+    total_clients = len(groq_clients)
+
+    for attempt in range(total_clients):
+        client = groq_clients[current_groq_index]
         try:
-            response = await loop.run_in_executor(
-                None,
-                lambda: gemini_client.models.generate_content(
-                    model='gemini-2.5-flash', # သို့မဟုတ် gemini-1.5-flash
-                    contents=[
-                        types.Part.from_bytes(data=photo_bytes, mime_type='image/jpeg'),
-                        prompt
-                    ]
-                )
+            # Groq Llama-3.2 Vision Model ကို အသုံးပြု၍ ခေါ်ယူခြင်း
+            chat_completion = await client.chat.completions.create(
+                model="llama-3.2-11b-vision-preview",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": data_url}
+                            }
+                        ]
+                    }
+                ],
+                temperature=0.0, # Strict Accuracy ရရှိရန် 0.0 ထားရှိခြင်း
+                max_tokens=100
             )
-            detected_title = response.text.strip()
-            return detected_title if "UNKNOWN" not in detected_title else None
+
+            detected_title = chat_completion.choices[0].message.content.strip()
             
+            # Next Key Rotation
+            current_groq_index = (current_groq_index + 1) % total_clients
+            return detected_title if "UNKNOWN" not in detected_title else None
+
         except Exception as e:
-            if "429" in str(e) or "ResourceExhausted" in str(e):
-                print("⚠️ Gemini Rate Limit ပြည့်သွားပါပြီ။ ၆၀ စက္ကန့် စောင့်ဆိုင်းနေပါသည်...")
-                await asyncio.sleep(60)
+            error_str = str(e)
+            if "429" in error_str or "rate_limit" in error_str:
+                print(f"⚠️ Groq Key Index {current_groq_index} Rate limit မိသွားပါသည်။ နောက် Key သို့ ပြောင်းနေသည်...")
+                current_groq_index = (current_groq_index + 1) % total_clients
+                await asyncio.sleep(1)
             else:
-                print(f"Gemini Vision Error: {e}")
+                print(f"Groq Vision Error: {e}")
                 return None
+
     return None
 
 # --- (၁) ဇာတ်ကား အားလုံးကို Scan ဖတ်ပြီး Archive Channel သို့ ပို့ရန် ---
