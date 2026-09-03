@@ -961,18 +961,24 @@ async def process_batch(chat_id: int, context: ContextTypes.DEFAULT_TYPE):
                 if mode == 'quiz':
                     await handle_quiz_generation(chat_id, context, raw_text)
                     return
-                html_content = raw_text.replace("```html", "").replace("```", "").strip()
+               html_content = raw_text.replace("```html", "").replace("```", "").strip()
+
+                # GitHub repo / Project root ထဲက Pyidaungsu.ttf လမ်းကြောင်းကို တိုက်ရိုက်ညွှန်းပေးခြင်း
+                font_path = os.path.abspath("Pyidaungsu.ttf")
+
                 styled_html = f"""
                 <html>
                 <head>
                 <style>
                 @font-face {{
                     font-family: 'Pyidaungsu';
-                        src: local('Pyidaungsu');
-                    }}
-                    body {{
-                        font-family: 'Pyidaungsu', sans-serif;
-                    }}
+                    src: url('file://{font_path}');
+                }}
+                body {{
+                    font-family: 'Pyidaungsu', sans-serif;
+                    font-size: 14px;
+                    line-height: 1.6;
+                }}
                 </style>
                 </head>
                 <body>
