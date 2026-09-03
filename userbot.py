@@ -31,8 +31,6 @@ if session_string:
 else:
     client = TelegramClient('my_userbot', api_id, api_hash)
 
-active_song_requests = []
-
 # --- မြန်မာစာ normalization နှင့် Sanitization Helper Functions ---
 def normalize_myanmar_text(text: str) -> str:
     if not text:
@@ -49,34 +47,41 @@ def sanitize_keyword(text: str) -> str:
     clean_text = re.sub(r'[\s\-_:=+.,!@#$%^&*()\[\]{}<>\/\\\'"]+', '', text)
     return clean_text
 
-# --- Poster ပုံမှ Movie Title ကို Gemini Vision ဖြင့် ဖတ်ယူ စစ်ဆေးမည့် Function ---
 async def get_movie_title_from_poster(photo_bytes):
-    try:
-        prompt = (
-            "Analyze this movie poster image carefully.\n"
-            "1. Read the exact text written on the poster (OCR).\n"
-            "2. Identify the official standard English movie title and release year.\n"
-            "3. Search and double check standard movie database naming if needed.\n"
-            "Output ONLY the title and year in this exact format: 'Movie Title (YYYY)'.\n"
-            "If it is not a movie poster or text is unreadable, reply with 'UNKNOWN'."
-        )
-        
-        loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(
-            None,
-            lambda: gemini_client.models.generate_content(
-                model='gemini-3.5-flash-lite',
-                contents=[
-                    types.Part.from_bytes(data=photo_bytes, mime_type='image/jpeg'),
-                    prompt
-                ]
+    prompt = (
+        "Analyze this movie poster image carefully.\n"
+        "1. Read the exact text written on the poster (OCR).\n"
+        "2. Identify the official standard English movie title and release year.\n"
+        "3. Search and double check standard movie database naming if needed.\n"
+        "Output ONLY the title and year in this exact format: 'Movie Title (YYYY)'.\n"
+        "If it is not a movie poster or text is unreadable, reply with 'UNKNOWN'."
+    )
+    
+    loop = asyncio.get_event_loop()
+    
+    for attempt in range(3): # Error တက်ရင် ၃ ကြိမ်အထိ ပြန်ကြိုးစားမည်
+        try:
+            response = await loop.run_in_executor(
+                None,
+                lambda: gemini_client.models.generate_content(
+                    model='gemini-2.5-flash', # သို့မဟုတ် gemini-1.5-flash
+                    contents=[
+                        types.Part.from_bytes(data=photo_bytes, mime_type='image/jpeg'),
+                        prompt
+                    ]
+                )
             )
-        )
-        detected_title = response.text.strip()
-        return detected_title if "UNKNOWN" not in detected_title else None
-    except Exception as e:
-        print(f"Gemini Vision Error: {e}")
-        return None
+            detected_title = response.text.strip()
+            return detected_title if "UNKNOWN" not in detected_title else None
+            
+        except Exception as e:
+            if "429" in str(e) or "ResourceExhausted" in str(e):
+                print("⚠️ Gemini Rate Limit ပြည့်သွားပါပြီ။ ၆၀ စက္ကန့် စောင့်ဆိုင်းနေပါသည်...")
+                await asyncio.sleep(60)
+            else:
+                print(f"Gemini Vision Error: {e}")
+                return None
+    return None
 
 # --- (၁) ဇာတ်ကား အားလုံးကို Scan ဖတ်ပြီး Archive Channel သို့ ပို့ရန် ---
 async def scan_and_forward(event=None):
@@ -216,9 +221,6 @@ async def handle_movie_search(event):
                     
                     if found_count >= 5:
                         break
-            
-            if found_count >= 5:
-                break
             
         if found_count == 0:
             await client.send_message(
